@@ -1,0 +1,34 @@
+name: Mirror NVD feeds
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Download feeds
+        run: go run mirror.go
+
+      - name: Commit
+        run: |
+          git config user.name github-actions
+          git config user.email actions@github.com
+                    
+          git add nvd 
+          git add cisa
+          git commit -m "update NVD feeds" || echo "no changes"
+          git push
+
+  
+      
+
