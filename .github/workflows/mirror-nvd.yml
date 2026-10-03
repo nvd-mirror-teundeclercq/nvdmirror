@@ -1,0 +1,43 @@
+name: Mirror NVD feeds
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+# Force-push needs write access to contents.
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      # No LFS: feeds are stored as plain files. Shallow checkout is enough
+      # since we replace history with a single commit every run.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.22"
+          cache: false
+
+      - name: Download feeds
+        run: go run mirror.go
+
+      - name: Publish as a single flattened commit
+        run: |
+          git config user.name github-actions
+          git config user.email actions@github.com
+
+          # Collapse everything into one orphan commit so the repo never
+          # accumulates old versions of the binary feeds (which is what
+          # blew up under LFS). Each run replaces main with a fresh snapshot.
+          git checkout --orphan flattened
+          git add -A
+          git commit -m "update NVD feeds"
+          git branch -M flattened main
+          git push -f origin main
